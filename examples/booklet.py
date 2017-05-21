@@ -24,9 +24,9 @@ from pdfrw import PdfReader, PdfWriter, PageMerge
 
 def fixpage(*pages):
     result = PageMerge() + (x for x in pages if x is not None)
+
     result[-1].x += result[0].w
     return result.render()
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input", help="Input pdf file name")
@@ -50,7 +50,10 @@ opages = []
 while len(ipages) > 2:
     opages.append(fixpage(ipages.pop(), ipages.pop(0)))
     opages.append(fixpage(ipages.pop(0), ipages.pop()))
-
+if (len(ipages)) == 2:
+	opages.append(fixpage(None, ipages.pop(0)))
+	ipages2 = PdfReader("none.pdf").pages
+	opages.append(fixpage(ipages2.pop(0), ipages.pop()))
 opages += ipages
 
 PdfWriter(outfn).addpages(opages).write()
