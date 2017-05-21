@@ -15,7 +15,7 @@ import os
 
 from pdfrw import PdfReader, PdfWriter, PageMerge
 
-def girar(trailer):
+def girar_core(trailer):
 	rotate = 180
 	rotate = int(rotate)
 	assert rotate % 90 == 0
@@ -25,23 +25,10 @@ def girar(trailer):
 	for x in range(1, len(pages)):
 		if (x%2 == 0):
 			ranges.append(x-1)
-	print(ranges)
 	for pagenum in ranges:
 	    pages[pagenum].Rotate = (int(pages[pagenum].inheritable.Rotate or
 	                                     0) + rotate) % 360
 	return trailer
-
-
-
-
-path0 = sys.argv[1]
-path1 = '1.%s' % os.path.basename(path0)
-
-outdata2 = PdfWriter(path1)
-outdata2.trailer = girar(PdfReader(path0))
-outdata2.write()
-# parte 2 - Dividir en dos unspread
-
 def splitpage(src):
     ''' Split a page into two (left and right)
     '''
@@ -50,21 +37,57 @@ def splitpage(src):
         yield PageMerge().add(src, viewrect=(x_pos, 0, 0.5, 1)).render()
 
 
-path2 = '2.' + os.path.basename(path0)
-writer = PdfWriter(path2)
-for page in PdfReader(path1).pages:
-    writer.addpages(splitpage(page))
-writer.write()
+def fixpage(*pages):
+    result = PageMerge() + (x for x in pages if x is not None)
+    result[-1].x += result[0].w
+    return result.render()
 
+def girar(path0):
+	path1 = '1.%s' % os.path.basename(path0)
+	outdata2 = PdfWriter(path1)
+	outdata2.trailer = girar_core(PdfReader(path0))
+	outdata2.write()
+	return path1
+def dividir(path_0):
+	path2 = '2.' + os.path.basename(path_0)
+	writer = PdfWriter(path2)
+	for page in PdfReader(path1).pages:
+	    writer.addpages(splitpage(page))
+	writer.write()
+	return path2
+def librito(path_0):
+	path3 = 'final.' + os.path.basename(path_0)
+	ipages = PdfReader(path2).pages
+
+
+	pad_to = 2
+
+	# Make sure we have a correct number of sides
+	ipages += [None]*(-len(ipages)%pad_to)
+
+	opages = []
+	while len(ipages) > 2:
+	    opages.append(fixpage(ipages.pop(), ipages.pop(0)))
+	    opages.append(fixpage(ipages.pop(0), ipages.pop()))
+	if (len(ipages)) == 2:
+		opages.append(fixpage(None, ipages.pop(0)))
+		ipages2 = PdfReader("none.pdf").pages
+		opages.append(fixpage(ipages2.pop(0), ipages.pop()))
+	opages += ipages
+
+	PdfWriter(path3).addpages(opages).write()
+# parte 1 - girar
+path0 = sys.argv[1]
+path1 = girar(path0)
+path2 = dividir(path1)
+path3 = librito(path2)
+os.remove(path1)
+os.remove(path2)
+# parte 2 - Dividir en dos unspread
 # parte 3 - booklet
 
 
 
-def fixpage(*pages):
-    result = PageMerge() + (x for x in pages if x is not None)
-
-    result[-1].x += result[0].w
-    return result.render()
 '''
 parser = argparse.ArgumentParser()
 parser.add_argument("input", help="Input pdf file name")
@@ -72,23 +95,3 @@ parser.add_argument("-p", "--padding", action = "store_true",
                     help="Padding the document so that all pages use the same type of sheet")
 args = parser.parse_args()
 '''
-path3 = '3.' + os.path.basename(path0)
-ipages = PdfReader(path2).pages
-
-
-pad_to = 2
-
-# Make sure we have a correct number of sides
-ipages += [None]*(-len(ipages)%pad_to)
-
-opages = []
-while len(ipages) > 2:
-    opages.append(fixpage(ipages.pop(), ipages.pop(0)))
-    opages.append(fixpage(ipages.pop(0), ipages.pop()))
-if (len(ipages)) == 2:
-	opages.append(fixpage(None, ipages.pop(0)))
-	ipages2 = PdfReader("none.pdf").pages
-	opages.append(fixpage(ipages2.pop(0), ipages.pop()))
-opages += ipages
-
-PdfWriter(path3).addpages(opages).write()
