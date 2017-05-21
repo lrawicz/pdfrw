@@ -1,0 +1,4 @@
+CEFYL function();
+1)girar
+2)dividir en dos
+3)llamar a booklet
