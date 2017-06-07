@@ -15,20 +15,7 @@ import os
 
 from pdfrw import PdfReader, PdfWriter, PageMerge
 
-def girar_core(trailer):
-	rotate = 180
-	rotate = int(rotate)
-	assert rotate % 90 == 0
 
-	pages = trailer.pages
-	ranges = []
-	for x in range(1, len(pages)):
-		if (x%2 == 0):
-			ranges.append(x-1)
-	for pagenum in ranges:
-	    pages[pagenum].Rotate = (int(pages[pagenum].inheritable.Rotate or
-	                                     0) + rotate) % 360
-	return trailer
 def splitpage(src):
     ''' Split a page into two (left and right)
     '''
@@ -42,22 +29,51 @@ def fixpage(*pages):
     result[-1].x += result[0].w
     return result.render()
 
-def girar(path0):
-	path1 = '1.%s' % os.path.basename(path0)
+def girar(path_0):
+	path1 = 'Girar.%s' % os.path.basename(path_0)
 	outdata2 = PdfWriter(path1)
-	outdata2.trailer = girar_core(PdfReader(path0))
-	outdata2.write()
+	trailer = PdfReader(path_0)
+	rotate = 180
+	rotate = int(rotate)
+	pages = trailer.pages
+	ranges = []
+	for x in range(0, len(pages)-1):
+		if (x%2 != 0):
+			ranges.append(x)
+	print(ranges)
+	for pagenum in ranges:
+		pages[pagenum].Rotate = (int(pages[pagenum].inheritable.Rotate or 0) + rotate) % 360
+
+	outdata = PdfWriter(path1)
+	outdata.trailer = trailer
+	outdata.write()
+
 	return path1
 def dividir(path_0):
-	path2 = '2.' + os.path.basename(path_0)
+	path2 =  'Dividir.%s' % os.path.basename(path_0)
 	writer = PdfWriter(path2)
-	for page in PdfReader(path1).pages:
+	for page in PdfReader(path_0).pages:
 	    writer.addpages(splitpage(page))
 	writer.write()
 	return path2
+def subSet(path_0,ranges):
+	if not ranges:
+	    ranges = [[1, len(pages)]]
+	    return path_0
+	else:
+		ranges = ([int(y) for y in x.split('-')] for x in ranges)
+		path2 = 'subset.%s' % os.path.basename(path_0)
+		pages = PdfReader(path_0).pages
+		outdata = PdfWriter(path2)
+		for onerange in ranges:
+			onerange = (onerange + onerange[-1:])[:2]
+			for pagenum in range(onerange[0], onerange[1]+1):
+				outdata.addpage(pages[pagenum-1])
+		outdata.write()
+		return path2
 def librito(path_0):
 	path3 = 'final.' + os.path.basename(path_0)
-	ipages = PdfReader(path2).pages
+	ipages = PdfReader(path_0).pages
 
 
 	pad_to = 2
@@ -76,22 +92,25 @@ def librito(path_0):
 	opages += ipages
 
 	PdfWriter(path3).addpages(opages).write()
-# parte 1 - girar
-path0 = sys.argv[1]
-path1 = girar(path0)
-path2 = dividir(path1)
-path3 = librito(path2)
-os.remove(path1)
-os.remove(path2)
-# parte 2 - Dividir en dos unspread
-# parte 3 - booklet
+# -----------------------
+
+accion = sys.argv[1];
+path0 = sys.argv[2];
+ranges = sys.argv[3:];
+path1 = path0
+#girar
+if "C" in accion:  
+	path1 = girar(path1)
+#subset
+if "S" in accion:
+	path1 = subSet(path1, ranges)
+#dividir
+if ("D" in accion) or ("C" in accion):
+	path1 = dividir(path1);
+#librito
+if ("L" in accion) or ("C" in accion):
+	path1 = librito(path1);
 
 
-
-'''
-parser = argparse.ArgumentParser()
-parser.add_argument("input", help="Input pdf file name")
-parser.add_argument("-p", "--padding", action = "store_true",
-                    help="Padding the document so that all pages use the same type of sheet")
-args = parser.parse_args()
-'''
+#C = cefyl
+#D = dividir
